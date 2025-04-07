@@ -1031,3 +1031,118 @@ update fn_MS_GetEmployees() set Name = 'Sam' where Id = 1 --ei saa muuta multist
 
 -- rida 1046
 -- 8 tund
+
+-- deterministic and non-deterministic
+
+select count(*) from EmployeesWithDates
+select square(3) --kõik tehtemärgid on deterministlikud funktsioonid, sinna kuuluvad veel sum, avg ja square
+
+-- non-deterministic
+select GETDATE()
+select CURRENT_TIMESTAMP
+
+select rand() --see funktsioon saab olla mõlemas kategoorias, kõik oleneb sellest, kas sulgudes on 1 või ei ole
+
+-- loome funktsiooni
+create function fn_GetNameById(@id int)
+returns nvarchar(30)
+as begin
+	return (select Name from EmployeesWithDates where Id = @id)
+end
+
+select dbo.fn_GetNameById(4)
+
+drop table EmployeesWithDates
+
+create table EmployeesWithDates
+(
+Id int primary key,
+Name nvarchar(50) NULL,
+DateOfBirth datetime NULL,
+Gender nvarchar(10) NULL,
+DepartmentId int NULL
+)
+
+select * from EmployeesWithDates
+
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
+VALUES (1, 'Sam', '1980-12-30 00:00:00.000', 'Male', 1)
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
+VALUES (2, 'Pam', '1982-09-01 12:02:36.260', 'Female', 2)
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
+VALUES (3, 'John', '1985-08-22 12:03:30.370', 'Male', 1)
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
+VALUES (4, 'Sara', '1979-11-29 12:59:30.670', 'Female', 3)
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
+Values (5, 'Todd', '1978-11-29 12:59:30.670', 'Male', 1);
+
+create function fn_GetEmployeeNameById(@Id int)
+returns nvarchar(20)
+as begin
+	return (select Name from EmployeesWithDates where Id = @Id)
+end
+
+sp_helptext fn_GetEmployeeNameById
+
+select dbo.fn_GetEmployeeNameById(3)
+
+--krüpteerige funktsioon fn_GetEmployeeNameById
+alter function fn_GetEmployeeNameById(@Id int)
+returns nvarchar(20)
+with encryption
+as begin
+	return (select Name from EmployeesWithDates where Id = @Id)
+end
+
+-- uuesti vaatame sisu
+sp_helptext fn_GetEmployeeNameById
+
+-- muudame ülevalpool olevat funktsiooni, kindlasti tabeli ette panna dbo.Tabelinimi
+alter function fn_GetEmployeeNameById(@Id int)
+returns nvarchar(20)
+with schemabinding
+as begin
+	return (select Name from EmployeesWithDates where Id = @Id)
+end
+
+drop table dbo.EmployeesWithDates
+
+-- temporary tables 
+
+--- #-märgi ette panemisel saame aru, et tegemist on temp tabeliga
+-- seda tabelit saab ainult selles päringus avada
+create table #PersonDetails(Id int, Name nvarchar(20))
+
+insert into #PersonDetails values (1, 'Mike')
+insert into #PersonDetails values (2, 'John')
+insert into #PersonDetails values (3, 'Todd')
+
+select * from #PersonDetails
+-- kuhu tekkis #PersonDetails tabel
+
+-- saab vaadata kõiki tabeleid, mis on süsteemis olemas või on loodud kasutaja poolt
+select Name from sysobjects
+where Name like 'Gender'
+
+--kustutame temp tabeli
+drop table #PersonDetails
+
+create proc spCreateLocalTempTable
+as begin
+create table #PersonDetails(Id int, Name nvarchar(20))
+
+insert into #PersonDetails values (1, 'Mike')
+insert into #PersonDetails values (2, 'John')
+insert into #PersonDetails values (3, 'Todd')
+
+select * from #PersonDetails
+end
+
+exec spCreateLocalTempTable
+
+-- globaalse temp tabeli tegemine e paned kaks # tabeli nime ette
+create table ##PersonDetails(Id int, Name nvarchar(20))
+
+
+
+
