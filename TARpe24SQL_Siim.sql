@@ -1,3 +1,4 @@
+
 --tund 1 03.03.2025
 --loome db
 create database TARpe24SQL
@@ -1029,28 +1030,28 @@ select * from fn_MS_GetEmployees()
 update fn_GetEmployees() set Name = 'Sam1' where Id = 1 --saab muuta andmeid
 update fn_MS_GetEmployees() set Name = 'Sam' where Id = 1 --ei saa muuta multistate puhul
 
--- rida 1046
--- 8 tund
+-- 8 tund 04.07.2025
 
--- deterministic and non-deterministic
+--deterministic and non-deterministic
 
 select count(*) from EmployeesWithDates
 select square(3) --kõik tehtemärgid on deterministlikud funktsioonid, sinna kuuluvad veel sum, avg ja square
 
 -- non-deterministic
-select GETDATE()
+select getdate()
 select CURRENT_TIMESTAMP
 
-select rand() --see funktsioon saab olla mõlemas kategoorias, kõik oleneb sellest, kas sulgudes on 1 või ei ole
+select rand() --see funktsioon saab olla mõlemas kategoorias, kõik oleneb sellest, 
+-- kas sulgudes on 1 või ei ole
 
--- loome funktsiooni
+--loome funktsiooni
 create function fn_GetNameById(@id int)
 returns nvarchar(30)
 as begin
 	return (select Name from EmployeesWithDates where Id = @id)
 end
 
-select dbo.fn_GetNameById(4)
+select fn_GetNameById(4)
 
 drop table EmployeesWithDates
 
@@ -1065,17 +1066,6 @@ DepartmentId int NULL
 
 select * from EmployeesWithDates
 
-INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
-VALUES (1, 'Sam', '1980-12-30 00:00:00.000', 'Male', 1)
-INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
-VALUES (2, 'Pam', '1982-09-01 12:02:36.260', 'Female', 2)
-INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
-VALUES (3, 'John', '1985-08-22 12:03:30.370', 'Male', 1)
-INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
-VALUES (4, 'Sara', '1979-11-29 12:59:30.670', 'Female', 3)
-INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth, Gender, DepartmentId)  
-Values (5, 'Todd', '1978-11-29 12:59:30.670', 'Male', 1);
-
 create function fn_GetEmployeeNameById(@Id int)
 returns nvarchar(20)
 as begin
@@ -1086,18 +1076,17 @@ sp_helptext fn_GetEmployeeNameById
 
 select dbo.fn_GetEmployeeNameById(3)
 
---krüpteerige funktsioon fn_GetEmployeeNameById
+--kr[pteerige funktsioon fn_GetEmployeeNameById
 alter function fn_GetEmployeeNameById(@Id int)
 returns nvarchar(20)
 with encryption
 as begin
 	return (select Name from EmployeesWithDates where Id = @Id)
 end
-
--- uuesti vaatame sisu
+--uuesti vataame sisu
 sp_helptext fn_GetEmployeeNameById
 
--- muudame ülevalpool olevat funktsiooni, kindlasti tabeli ette panna dbo.Tabelinimi
+--muudame ülevalpool olevat funktsiooni, kindlasti tabeli ette panna dbo.Tabelinimi
 alter function fn_GetEmployeeNameById(@Id int)
 returns nvarchar(20)
 with schemabinding
@@ -1107,20 +1096,20 @@ end
 
 drop table dbo.EmployeesWithDates
 
--- temporary tables 
+-- temporary tables
 
 --- #-märgi ette panemisel saame aru, et tegemist on temp tabeliga
--- seda tabelit saab ainult selles päringus avada
+--- seda tabelit saab ainult selles päringus avdada
 create table #PersonDetails(Id int, Name nvarchar(20))
 
-insert into #PersonDetails values (1, 'Mike')
-insert into #PersonDetails values (2, 'John')
-insert into #PersonDetails values (3, 'Todd')
+insert into #PersonDetails values(1, 'Mike')
+insert into #PersonDetails values(2, 'John')
+insert into #PersonDetails values(3, 'Todd')
 
 select * from #PersonDetails
--- kuhu tekkis #PersonDetails tabel
+--kuhu tekkis #PersonDetails tabel
 
--- saab vaadata kõiki tabeleid, mis on süsteemis olemas või on loodud kasutaja poolt
+--saab vaadata k]iki tabeleid, mis on süsteemis olemas või on loodud kasutaja poolt
 select Name from sysobjects
 where Name like 'Gender'
 
@@ -1131,18 +1120,175 @@ create proc spCreateLocalTempTable
 as begin
 create table #PersonDetails(Id int, Name nvarchar(20))
 
-insert into #PersonDetails values (1, 'Mike')
-insert into #PersonDetails values (2, 'John')
-insert into #PersonDetails values (3, 'Todd')
+insert into #PersonDetails values(1, 'Mike')
+insert into #PersonDetails values(2, 'John')
+insert into #PersonDetails values(3, 'Todd')
 
 select * from #PersonDetails
 end
 
 exec spCreateLocalTempTable
 
--- globaalse temp tabeli tegemine e paned kaks # tabeli nime ette
+--Erinevused lokaalse ja globaalse ajutise tabeli osas:
+--1. Lokaalsed ajutised tabelid on ühe # märgiga, aga globaalsel on kaks tükki.
+--2. SQL server lisab suvalisi numbreid lokaalse ajutise tabeli nimesse, 
+--aga globaalse puhul seda ei ole.
+--3. Lokaalsed on nähtavad ainult selles sessioonis, mis on selle loonud, 
+--aga globaalsed on nähtavad kõikides sessioonides.
+--4. Lokaalsed ajutised tabelid on automaatselt kustutatud, 
+--kui selle loonud sessioon on kinni pandud, aga globaalsed 
+--ajutised tabelid lõpetatakse viimane viitav ühendus on kinni pandud.
+
+
+--globaalse temp tabeli tegemine e paned kaks # tabeli nime ette
 create table ##PersonDetails(Id int, Name nvarchar(20))
 
+--index
+create table EmployeeWithSalary
+(
+Id int primary key,
+Name nvarchar(25),
+Salary int,
+Gender nvarchar(10)
+)
 
+select * from EmployeeWithSalary
 
+select * from EmployeeWithSalary
+where Salary > 5000 and Salary < 7000
 
+--loome indeksi, mis asetab palga kahanevasse järjestusse
+create index IX_Employee_Salary
+on EmployeeWithSalary (Salary asc)
+
+-- saame teada, et mis on selle tabeli primaarvõti ja index
+exec sys.sp_helpindex @objname = 'EmployeeWithSalary'
+
+select * from EmployeeWithSalary
+with (index(IX_Employee_Salary))
+
+--saame vaadata tabelit koos selle sisuga alates väga detailsest infost
+select 
+	TableName = t.name,
+	IndexName = ind.name,
+	IndexId = ind.index_id,
+	ColumnId = ic.index_column_id,
+	ColumnName = col.name,
+	ind.*,
+	ic.*,
+	col.*
+from
+	sys.indexes ind
+inner join
+	sys.index_columns ic on ind.object_id = ic.object_id and ind.index_id = ic.index_id
+inner join
+	sys.columns col on ic.object_id = col.object_id and ic.column_id = col.column_id
+inner join
+	sys.tables t on ind.object_id = t.object_id
+where
+	ind.is_primary_key = 0
+	and ind.is_unique = 0
+	and ind.is_unique_constraint = 0
+	and t.is_ms_shipped = 0
+order by
+	t.name, ind.name, ind.index_id, ic.is_included_column, ic.key_ordinal;
+
+--indeksi kustutamine
+drop index EmployeeWithSalary.IX_Employee_Salary
+
+---- indeksi tüübid:
+--1. Klastrites olevad
+--2. Mitte-klastris olevad
+--3. Unikaalsed
+--4. Filtreeritud
+--5. XML
+--6. Täistekst
+--7. Ruumiline
+--8. Veerusäilitav
+--9. Veergude indeksid
+--10. Välja arvatud veergudega indeksid
+
+-- klastris olev indeks määrab ära tabelis oleva füüsilise järjestuse 
+-- ja selle tulemusel saab tabelis olla ainult üks klastris olev indeks
+
+create table EmployeeCity
+(
+Id int primary key,
+Name nvarchar(50),
+Salary int,
+Gender nvarchar(10),
+City nvarchar(50)
+)
+
+exec sp_helpindex EmployeeCity
+
+-- andmete õige järjestuse loovad klastris olevad indeksid ja kasutab selleks Id nr-t
+-- põhjus, miks antud juhul kasutab Id-d, tuleneb primaarvõtmest
+insert into EmployeeCity values(3, 'John', 4500, 'Male', 'New York')
+insert into EmployeeCity values(1, 'Sam', 2500, 'Male', 'London')
+insert into EmployeeCity values(4, 'Sara', 5500, 'Female', 'Tokyo')
+insert into EmployeeCity values(5, 'Todd', 3100, 'Male', 'Toronto')
+insert into EmployeeCity values(2, 'Pam', 6500, 'Male', 'Sydney')
+
+-- klastris olevad indeksid dikteerivad säilitatud andmete järjestuse tabelis 
+-- ja seda saab klastrite puhul olla ainult üks
+
+select * from EmployeeCity
+
+create clustered index IX_EmployeeCity_Name
+on EmployeeCity(Name)
+
+--- annab veateate, et tabelis saab olla ainult üks klastris olev indeks
+--- kui soovid, uut indeksit luua, siis kustuta olemasolev
+
+--- saame luua ainult ühe klastris oleva indeksi tabeli peale
+--- klastris olev indeks on analoogne telefoni suunakoodile
+
+-- loome composite indeksi
+-- enne tuleb kõik teised klastris olevad indeksid ära kustutada
+create clustered index IX_Employee_Gender_Salary
+on EmployeeCity(Gender desc, Salary asc)
+--index on eemaldatud ja nüüd käivitame selle uuesti
+
+select * from EmployeeCity
+
+--- erinevused kahe indeksi vahel
+--- 1. ainult üks klastris olev indeks saab olla tabeli peale, 
+--- mitte-klastris olevaid indekseid saab olla mitu
+--- 2. klastris olevad indeksid on kiiremad kuna indeks peab tagasi viitama tabelile
+--- Juhul, kui selekteeritud veerg ei ole olemas indeksis
+--- 3. Klastris olev indeks määratleb ära tabeli ridade salvestusjärjestuse
+--- ja ei nõua kettal lisa ruumi. Samas mitte klastris olevad indeksid on 
+--- salvestatud tabelist eraldi ja nõuab lisa ruumi
+
+create table EmployeeFirstName
+(
+	Id int primary key,
+	FirstName nvarchar(50),
+	LastName nvarchar(50),
+	Salary int,
+	Gender nvarchar(10),
+	City nvarchar(50)
+)
+
+exec sp_helpindex EmployeeFirstName
+--- ei saa sisestada kahte samasuguse Id väärtusega rida
+insert into EmployeeFirstName values(1, 'Mike', 'Sandoz', 4500, 'Male', 'New York')
+insert into EmployeeFirstName values(1, 'John', 'Menco', 2500, 'Male', 'London')
+
+--
+drop index EmployeeFirstName.PK__Employee__3214EC075E817DE7
+--- kui käivitad ülevalpool oleva koodi, siis tuleb veateade
+--- et SQL server kasutab UNIQUE indeksit jõustamaks väärtuste unikaalsust 
+--- ja primaarvõtit
+--- koodiga Unikaalseid Indekseid ei saa kustutada, aga käsitsi saab
+
+--sisestame uuesti kaks koodirida
+insert into EmployeeFirstName values(1, 'Mike', 'Sandoz', 4500, 'Male', 'New York')
+insert into EmployeeFirstName values(1, 'John', 'Menco', 2500, 'Male', 'London')
+--- unikaalset indeksid kasutatakse kindlustamaks
+--- väärtuste unikaalsust (sh primaarvõtme oma)
+-- mõlemat tüüpi indeksid saavad olla unikaalsed
+
+-- rida 1313
+---9 tund
