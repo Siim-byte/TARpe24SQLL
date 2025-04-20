@@ -1,4 +1,3 @@
-
 --tund 1 03.03.2025
 --loome db
 create database TARpe24SQL
@@ -1096,6 +1095,8 @@ end
 
 drop table dbo.EmployeesWithDates
 
+drop function fn_GetEmployeeNameById
+
 -- temporary tables
 
 --- #-märgi ette panemisel saame aru, et tegemist on temp tabeliga
@@ -1290,5 +1291,198 @@ insert into EmployeeFirstName values(1, 'John', 'Menco', 2500, 'Male', 'London')
 --- väärtuste unikaalsust (sh primaarvõtme oma)
 -- mõlemat tüüpi indeksid saavad olla unikaalsed
 
--- rida 1313
----9 tund
+---9 tund 14.04.2025
+
+--lisame piirangu, mis n]uab, et veerus ei oleks dublikaate,
+-- aga selles veerus on ja siis ei saa seda rakendada
+alter table EmployeeFirstName
+add constraint UQ_EmployeeFirstName_City
+unique nonclustered(City)
+
+update EmployeeFirstName
+set City = 'Los Angeles'
+where City = 'New york'
+
+delete EmployeeFirstName
+where Id = 1
+
+select * from EmployeeFirstName
+
+insert into EmployeeFirstName values(3, 'John', 'Menco', 3500, 'Male', 'Berlin')
+
+----Index
+
+exec sp_helpconstraint EmployeeFirstName
+-- 1.Vaikimisi primaarvõti loob unikaalse klastris oleva indeksi, samas unikaalne piirang
+-- loob unikaalse mitte-klastris oleva indeksi
+-- 2. Unikaalset indeksit või piirangut ei saa luua olemasolevasse tabelisse, kui tabel 
+-- juba sisaldab väärtusi võtmeveerus
+-- 3. Vaikimisi korduvaid väärtusied ei ole veerus lubatud,
+-- kui peaks olema unikaalne indeks või piirang. Nt, kui tahad sisestada 10 rida andmeid,
+-- millest 5 sisaldavad korduviad andmeid, siis kõik 10 lükatakse tagasi. Kui soovin ainult 5
+-- rea tagasi lükkamist ja ülejäänud 5 rea sisestamist, siis selleks kasutatakse IGNORE_DUP_KEY
+
+create unique index IX_EmployeeFirstName
+on EmployeeFirstName(City)
+with ignore_dup_key
+
+insert into EmployeeFirstName values(3, 'John', 'Menco', 3512, 'Male', 'Madrid')
+insert into EmployeeFirstName values(4, 'John', 'Menco', 3523, 'Male', 'London1')
+insert into EmployeeFirstName values(4, 'John', 'Menco', 3520, 'Male', 'London1')
+
+select * from EmployeeFirstName
+
+---view 
+---view on salvestatud SQL-i päring. Saab käsitleda ka visrtuaalse tabelina.
+
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+--loome view
+create view vEmployeesByDepartment
+as
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+--- view päringu esile kutsumine
+select * from vEmployeesByDepartment
+
+-- view ei salvesta andmeid vaikimisi
+-- seda tasub võtta, kui salvestatud virtuaalse tabelina
+
+-- milleks vaja:
+-- saab kasutada andmebaasi skeemi keerukuse lihtsutamiseks,
+-- mitte IT-inimesele
+-- piiratud ligipääs andmetele, ei näe kõiki veerge
+
+-- teeme view, kus näeb ainult IT-töötajaid
+-- view nimi on vITEmployeesInDepartment
+create view vITEmployeesInDepartment
+as
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+where Department.DepartmentName = 'IT'
+-- ülevalpool olevat päringut saab liigitada reataseme turvalisuse alla
+-- tahan ainult näidata IT osakonna töötajaid
+
+select * from vITEmployeesInDepartment
+
+-- veeru taseme turvalisus
+-- peale selecti määratled veergude näitamise ära
+create view vEmployeesInDepartmentSalaryNoShow
+as
+select FirstName, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+select * from vEmployeesInDepartmentSalaryNoShow
+
+-- saab kasutada koondandmete esitlemist ja üksikasjalike andmeid
+-- view, mis tagastab summeeritud andmeid
+create view vEmployeesCountByDepartment
+as
+select DepartmentName, count(Employees.Id) as TotalEmployees
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+group by DepartmentName
+
+select * from vEmployeesCountByDepartment
+
+-- kui soovid vaadata view sisu
+sp_helptext vEmployeesCountByDepartment
+-- muuta saab alter k'suga
+-- kustutada saab drop käsuga
+
+--view, mida kasutame andmete uuendamiseks
+create view vEmployeesDataExceptSalary
+as
+select Id, FirstName, Gender, DepartmentId
+from Employees
+
+--kasutame seda view-d, et uuendada andmeid
+--muuta Id 2 all olev eesnimi Tom-ks
+update vEmployeesDataExceptSalary
+set FirstName = 'Tom' where Id = 2
+
+--
+alter view vEmployeesDataExceptSalary
+as
+select Id, FirstName, Gender, DepartmentId
+from Employees
+
+-- kustutame andmeid ja kasutame seda viewd: vEmployeesDataExceptSalary
+-- Id 2 all olevad andmed
+delete vEmployeesDataExceptSalary where Id = 2
+--n[[d lisame andmed
+insert into vEmployeesDataExceptSalary (Id, Gender, DepartmentId, FirstName)
+values(2, 'Female', 2, 'Pam')
+
+-- indekseeritud view
+-- MS SQL-s on indekseeritud view nime all ja 
+-- Oracle-s materjaliseeritud view
+create table product
+(
+Id int primary key,
+Name nvarchar(20),
+UnitPrice int
+)
+
+insert into Product values (1, 'Books', 20)
+insert into Product values (2, 'Pens', 14)
+insert into Product values (3, 'Pencils', 11)
+insert into Product values (4, 'Clips', 10)
+
+create table ProductSales
+(
+Id int,
+QuantitySold int
+)
+
+insert into ProductSales values(1, 10),
+(3, 23),
+(4, 21),
+(2, 12),
+(1, 13),
+(3, 12),
+(4, 13),
+(1, 11),
+(2, 12),
+(1, 14)
+
+--loome view, mis annab meile veerud TotalSales ja TotalTransaction
+create view vTotalSalesByProduct
+with schemabinding
+as
+select Name,
+sum(isnull((QuantitySold * UnitPrice), 0)) as TotalSales,
+COUNT_BIG(*) as TotalTransactions
+from dbo.ProductSales
+join dbo.Product
+on dbo.Product.Id = ProductSales.Id
+group by Name
+
+--- kui soovid luua indeksi view sisse, siis peab järgima teatud reegleid
+-- 1. view tuleb luua koos schemabinding-ga
+-- 2. kui lisafunktsioon select list viitab väljendile ja selle tulemuseks
+-- võib olla NULL, siis asendusväärtus peaks olema täpsustatud. 
+-- Antud juhul kasutasime ISNULL funktsiooni asendamaks NULL väärtust
+-- 3. kui GroupBy on täpsustatud, siis view select list peab
+-- sisaldama COUNT_BIG(*) väljendit
+-- 4. Baastabelis peaksid view-d olema viidatud kaheosalise nimega
+-- e antud juhul dbo.Product ja dbo.ProductSales.
+
+select * from vTotalSalesByProduct
+
+create unique clustered index UIX_TotalSalesByProduct_Name
+on vTotalSalesByProduct(Name)
+
+-- rida 1517
+-- tund 10
